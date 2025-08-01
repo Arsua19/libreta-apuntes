@@ -1,12 +1,95 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>Libreta de Apuntes con Firebase</title>
+  <meta charset="UTF-8">
+  <title>Libreta de Apuntes</title>
+  <style>
+    /* estilos iguales a los anteriores */
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-top: 10px;
+      padding: 10px;
+      font-size: 16px;
+      resize: vertical;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 15px;
+      font-size: 16px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .note {
+      margin-top: 20px;
+      border-left: 4px solid #007BFF;
+      background: #f9f9f9;
+      padding: 10px;
+      border-radius: 5px;
+      position: relative;
+    }
+    .timestamp {
+      font-size: 14px;
+      color: #555;
+    }
+    .description {
+      margin-top: 5px;
+      white-space: pre-wrap;
+    }
+    .actions {
+      margin-top: 10px;
+    }
+    .actions button {
+      background: #6c757d;
+      margin-right: 10px;
+    }
+    .actions button:hover {
+      background: #5a6268;
+    }
+    .actions .delete {
+      background: #dc3545;
+    }
+    .actions .delete:hover {
+      background: #c82333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📝 Libreta de Apuntes</h1>
+    <textarea id="inputApunte" placeholder="Escribe aquí tu apunte..."></textarea>
+    <button onclick="guardarApunte()">Guardar Apunte</button>
+    <div id="listaApuntes"></div>
+  </div>
+
+  <!-- Firebase SDKs -->
   <script type="module">
-    // Importamos Firebase desde CDN
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyB4LEDtmgEIDvA2Z_9zLqgAfbjVAmJMqy8",
@@ -18,151 +101,69 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    const db = getFirestore(app);
 
-    const listaApuntes = document.getElementById("listaApuntes");
     const input = document.getElementById("inputApunte");
+    const lista = document.getElementById("listaApuntes");
 
-    document.getElementById("guardarBtn").addEventListener("click", () => {
+    async function guardarApunte() {
       const texto = input.value.trim();
-      if (texto === "") return alert("Escribe algo primero");
+      if (!texto) return alert("Escribe algo primero.");
 
       const ahora = new Date();
-      const apunte = {
-        texto,
-        fecha: ahora.toLocaleString()
-      };
+      const fechaHora = ahora.toLocaleString();
 
-      push(ref(db, "apuntes"), apunte);
+      // Guardar en Firestore
+      const docRef = await addDoc(collection(db, "apuntes"), {
+        descripcion: texto,
+        timestamp: fechaHora
+      });
+
       input.value = "";
-    });
+      mostrarApuntes(); // actualizar la lista
+    }
 
-    onValue(ref(db, "apuntes"), (snapshot) => {
-      listaApuntes.innerHTML = "";
-      snapshot.forEach((child) => {
-        const apunte = child.val();
-        const key = child.key;
-
+    async function mostrarApuntes() {
+      lista.innerHTML = "";
+      const querySnapshot = await getDocs(collection(db, "apuntes"));
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const id = docSnap.id;
         const div = document.createElement("div");
         div.className = "note";
         div.innerHTML = `
-          <div class="timestamp">📅 ${apunte.fecha}</div>
-          <div class="description">${apunte.texto}</div>
+          <div class="timestamp">📅 ${data.timestamp}</div>
+          <div class="description">${data.descripcion}</div>
           <div class="actions">
-            <button onclick="editar('${key}', '${apunte.texto.replace(/'/g, "\\'")}')">🖊️ Editar</button>
-            <button class="delete" onclick="eliminar('${key}')">🗑️ Eliminar</button>
+            <button onclick="editarApunte('${id}', this)">🖊️ Editar</button>
+            <button class="delete" onclick="eliminarApunte('${id}')">🗑️ Eliminar</button>
           </div>
         `;
-        listaApuntes.prepend(div);
+        lista.prepend(div);
       });
-    });
+    }
 
-    window.editar = (key, textoActual) => {
-      const nuevo = prompt("Editar apunte:", textoActual);
-      if (nuevo !== null) {
-        update(ref(db, `apuntes/${key}`), { texto: nuevo.trim() });
-      }
-    };
-
-    window.eliminar = (key) => {
+    async function eliminarApunte(id) {
       if (confirm("¿Eliminar este apunte?")) {
-        remove(ref(db, `apuntes/${key}`));
+        await deleteDoc(doc(db, "apuntes", id));
+        mostrarApuntes();
       }
-    };
+    }
+
+    async function editarApunte(id, btn) {
+      const notaDiv = btn.closest(".note");
+      const descDiv = notaDiv.querySelector(".description");
+      const nuevoTexto = prompt("Editar apunte:", descDiv.textContent);
+      if (nuevoTexto !== null) {
+        await updateDoc(doc(db, "apuntes", id), {
+          descripcion: nuevoTexto.trim()
+        });
+        mostrarApuntes();
+      }
+    }
+
+    // Mostrar apuntes al cargar
+    mostrarApuntes();
   </script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 20px;
-    }
-
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-
-    textarea {
-      width: 100%;
-      height: 100px;
-      margin-top: 10px;
-      padding: 10px;
-      font-size: 16px;
-      resize: vertical;
-    }
-
-    button {
-      margin-top: 10px;
-      padding: 10px 15px;
-      font-size: 16px;
-      background: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #0056b3;
-    }
-
-    .note {
-      margin-top: 20px;
-      border-left: 4px solid #007BFF;
-      background: #f9f9f9;
-      padding: 10px;
-      border-radius: 5px;
-      position: relative;
-    }
-
-    .timestamp {
-      font-size: 14px;
-      color: #555;
-    }
-
-    .description {
-      margin-top: 5px;
-      white-space: pre-wrap;
-    }
-
-    .actions {
-      margin-top: 10px;
-    }
-
-    .actions button {
-      background: #6c757d;
-      margin-right: 10px;
-    }
-
-    .actions button:hover {
-      background: #5a6268;
-    }
-
-    .actions .delete {
-      background: #dc3545;
-    }
-
-    .actions .delete:hover {
-      background: #c82333;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>📝 Libreta de Apuntes</h1>
-    <textarea id="inputApunte" placeholder="Escribe aquí tu apunte..."></textarea>
-    <button id="guardarBtn">Guardar Apunte</button>
-    <div id="listaApuntes"></div>
-  </div>
 </body>
 </html>

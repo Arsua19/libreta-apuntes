@@ -1,8 +1,75 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Libreta de Apuntes</title>
+  <meta charset="UTF-8" />
+  <title>Libreta de Apuntes con Firebase</title>
+  <script type="module">
+    // Importamos Firebase desde CDN
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB4LEDtmgEIDvA2Z_9zLqgAfbjVAmJMqy8",
+      authDomain: "libreta-apuntes.firebaseapp.com",
+      projectId: "libreta-apuntes",
+      storageBucket: "libreta-apuntes.firebasestorage.app",
+      messagingSenderId: "891918026806",
+      appId: "1:891918026806:web:7d3e17aa1ddaed94be7097"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const listaApuntes = document.getElementById("listaApuntes");
+    const input = document.getElementById("inputApunte");
+
+    document.getElementById("guardarBtn").addEventListener("click", () => {
+      const texto = input.value.trim();
+      if (texto === "") return alert("Escribe algo primero");
+
+      const ahora = new Date();
+      const apunte = {
+        texto,
+        fecha: ahora.toLocaleString()
+      };
+
+      push(ref(db, "apuntes"), apunte);
+      input.value = "";
+    });
+
+    onValue(ref(db, "apuntes"), (snapshot) => {
+      listaApuntes.innerHTML = "";
+      snapshot.forEach((child) => {
+        const apunte = child.val();
+        const key = child.key;
+
+        const div = document.createElement("div");
+        div.className = "note";
+        div.innerHTML = `
+          <div class="timestamp">📅 ${apunte.fecha}</div>
+          <div class="description">${apunte.texto}</div>
+          <div class="actions">
+            <button onclick="editar('${key}', '${apunte.texto.replace(/'/g, "\\'")}')">🖊️ Editar</button>
+            <button class="delete" onclick="eliminar('${key}')">🗑️ Eliminar</button>
+          </div>
+        `;
+        listaApuntes.prepend(div);
+      });
+    });
+
+    window.editar = (key, textoActual) => {
+      const nuevo = prompt("Editar apunte:", textoActual);
+      if (nuevo !== null) {
+        update(ref(db, `apuntes/${key}`), { texto: nuevo.trim() });
+      }
+    };
+
+    window.eliminar = (key) => {
+      if (confirm("¿Eliminar este apunte?")) {
+        remove(ref(db, `apuntes/${key}`));
+      }
+    };
+  </script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -94,85 +161,8 @@
   <div class="container">
     <h1>📝 Libreta de Apuntes</h1>
     <textarea id="inputApunte" placeholder="Escribe aquí tu apunte..."></textarea>
-    <button onclick="guardarApunte()">Guardar Apunte</button>
-
+    <button id="guardarBtn">Guardar Apunte</button>
     <div id="listaApuntes"></div>
   </div>
-
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
-
-  <script>
-    // 🔁 REEMPLAZA con tu configuración real de Firebase
-    const firebaseConfig = {
-      apiKey: "TU_API_KEY",
-      authDomain: "TU_PROYECTO.firebaseapp.com",
-      projectId: "TU_PROYECTO",
-      storageBucket: "TU_PROYECTO.appspot.com",
-      messagingSenderId: "TU_SENDER_ID",
-      appId: "TU_APP_ID"
-    };
-
-    // Inicializar Firebase y Firestore
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
-    function guardarApunte() {
-      const descripcion = document.getElementById("inputApunte").value.trim();
-      if (descripcion === "") {
-        alert("Por favor escribe algo antes de guardar.");
-        return;
-      }
-
-      const ahora = new Date();
-      const fechaHora = ahora.toLocaleString();
-
-      // Guardar en Firestore
-      db.collection("apuntes").add({
-        descripcion: descripcion,
-        fecha: fechaHora
-      }).then(() => {
-        mostrarEnPantalla(descripcion, fechaHora);
-        document.getElementById("inputApunte").value = "";
-      }).catch((error) => {
-        alert("❌ Error al guardar en Firebase: " + error);
-      });
-    }
-
-    function mostrarEnPantalla(descripcion, fechaHora) {
-      const contenedorApuntes = document.getElementById("listaApuntes");
-
-      const nuevoApunte = document.createElement("div");
-      nuevoApunte.classList.add("note");
-
-      nuevoApunte.innerHTML = `
-        <div class="timestamp">📅 ${fechaHora}</div>
-        <div class="description">${descripcion}</div>
-        <div class="actions">
-          <button onclick="editarApunte(this)">🖊️ Editar</button>
-          <button class="delete" onclick="eliminarApunte(this)">🗑️ Eliminar</button>
-        </div>
-      `;
-
-      contenedorApuntes.prepend(nuevoApunte);
-    }
-
-    function editarApunte(boton) {
-      const nota = boton.closest(".note");
-      const descripcionDiv = nota.querySelector(".description");
-      const nuevaDescripcion = prompt("Editar apunte:", descripcionDiv.textContent);
-      if (nuevaDescripcion !== null) {
-        descripcionDiv.textContent = nuevaDescripcion.trim();
-      }
-    }
-
-    function eliminarApunte(boton) {
-      if (confirm("¿Seguro que deseas eliminar este apunte?")) {
-        const nota = boton.closest(".note");
-        nota.remove();
-      }
-    }
-  </script>
 </body>
 </html>

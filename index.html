@@ -99,7 +99,25 @@
     <div id="listaApuntes"></div>
   </div>
 
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+
   <script>
+    // 🔁 REEMPLAZA con tu configuración real de Firebase
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "TU_PROYECTO.firebaseapp.com",
+      projectId: "TU_PROYECTO",
+      storageBucket: "TU_PROYECTO.appspot.com",
+      messagingSenderId: "TU_SENDER_ID",
+      appId: "TU_APP_ID"
+    };
+
+    // Inicializar Firebase y Firestore
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     function guardarApunte() {
       const descripcion = document.getElementById("inputApunte").value.trim();
       if (descripcion === "") {
@@ -110,6 +128,19 @@
       const ahora = new Date();
       const fechaHora = ahora.toLocaleString();
 
+      // Guardar en Firestore
+      db.collection("apuntes").add({
+        descripcion: descripcion,
+        fecha: fechaHora
+      }).then(() => {
+        mostrarEnPantalla(descripcion, fechaHora);
+        document.getElementById("inputApunte").value = "";
+      }).catch((error) => {
+        alert("❌ Error al guardar en Firebase: " + error);
+      });
+    }
+
+    function mostrarEnPantalla(descripcion, fechaHora) {
       const contenedorApuntes = document.getElementById("listaApuntes");
 
       const nuevoApunte = document.createElement("div");
@@ -125,7 +156,6 @@
       `;
 
       contenedorApuntes.prepend(nuevoApunte);
-      document.getElementById("inputApunte").value = ""; // limpia
     }
 
     function editarApunte(boton) {

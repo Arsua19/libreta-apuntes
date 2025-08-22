@@ -6,7 +6,7 @@
   <script type="module">
     // Importar módulos de Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     // Configuración de tu proyecto Firebase
     const firebaseConfig = {
@@ -21,6 +21,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+    // Guardar apunte con fecha y timestamp
     window.guardarApunte = async function () {
       const descripcion = document.getElementById("inputApunte").value.trim();
       if (descripcion === "") {
@@ -29,22 +30,26 @@
       }
 
       const ahora = new Date();
-      const fechaHora = ahora.toLocaleString();
 
-      const docRef = await addDoc(collection(db, "apuntes"), {
+      await addDoc(collection(db, "apuntes"), {
         descripcion,
-        fechaHora
+        fechaHora: ahora.toLocaleString(), // legible para mostrar
+        timestamp: ahora.getTime()         // numérico para ordenar
       });
 
       document.getElementById("inputApunte").value = "";
       cargarApuntes(); // recargar lista
     };
 
+    // Cargar apuntes ordenados por fecha
     window.cargarApuntes = async function () {
       const contenedor = document.getElementById("listaApuntes");
       contenedor.innerHTML = "";
 
-      const querySnapshot = await getDocs(collection(db, "apuntes"));
+      // Consulta ordenada (más recientes primero)
+      const q = query(collection(db, "apuntes"), orderBy("timestamp", "desc"));
+      const querySnapshot = await getDocs(q);
+
       querySnapshot.forEach((docSnap) => {
         const apunte = docSnap.data();
         const id = docSnap.id;
@@ -61,7 +66,7 @@
           </div>
         `;
 
-        contenedor.prepend(nuevoApunte);
+        contenedor.appendChild(nuevoApunte);
       });
     };
 

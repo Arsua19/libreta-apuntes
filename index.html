@@ -6,7 +6,7 @@
   <script type="module">
     // Importar módulos de Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     // Configuración de tu proyecto Firebase
     const firebaseConfig = {
@@ -41,19 +41,31 @@
       cargarApuntes(); // recargar lista
     };
 
-    // Cargar apuntes ordenados por fecha
+    // Cargar apuntes ordenados (compatibles con los antiguos sin timestamp)
     window.cargarApuntes = async function () {
       const contenedor = document.getElementById("listaApuntes");
       contenedor.innerHTML = "";
 
-      // Consulta ordenada (más recientes primero)
-      const q = query(collection(db, "apuntes"), orderBy("timestamp", "desc"));
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(collection(db, "apuntes"));
+      let apuntes = [];
 
       querySnapshot.forEach((docSnap) => {
-        const apunte = docSnap.data();
-        const id = docSnap.id;
+        let apunte = docSnap.data();
+        apunte.id = docSnap.id;
 
+        // Si no tiene timestamp (apuntes antiguos), lo calculamos desde fechaHora
+        if (!apunte.timestamp && apunte.fechaHora) {
+          apunte.timestamp = Date.parse(apunte.fechaHora) || 0;
+        }
+
+        apuntes.push(apunte);
+      });
+
+      // Ordenar por timestamp (más recientes primero)
+      apuntes.sort((a, b) => b.timestamp - a.timestamp);
+
+      // Renderizar
+      apuntes.forEach((apunte) => {
         const nuevoApunte = document.createElement("div");
         nuevoApunte.classList.add("note");
 
@@ -61,8 +73,8 @@
           <div class="timestamp">📅 ${apunte.fechaHora}</div>
           <div class="description">${apunte.descripcion}</div>
           <div class="actions">
-            <button onclick="editarApunte('${id}', this)">🖊️ Editar</button>
-            <button class="delete" onclick="eliminarApunte('${id}')">🗑️ Eliminar</button>
+            <button onclick="editarApunte('${apunte.id}', this)">🖊️ Editar</button>
+            <button class="delete" onclick="eliminarApunte('${apunte.id}')">🗑️ Eliminar</button>
           </div>
         `;
 

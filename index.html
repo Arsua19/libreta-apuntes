@@ -41,6 +41,25 @@
       cargarApuntes(); // recargar lista
     };
 
+    // Función auxiliar para convertir "dd/mm/yyyy hh:mm:ss" en timestamp
+    function convertirFecha(fechaStr) {
+      const partes = fechaStr.split(" ");
+      if (partes.length < 2) return 0;
+
+      const fecha = partes[0].split("/");
+      const hora = partes[1].split(":");
+
+      const dia = parseInt(fecha[0]);
+      const mes = parseInt(fecha[1]) - 1; // meses van de 0 a 11
+      const anio = parseInt(fecha[2]);
+
+      const horas = parseInt(hora[0]) || 0;
+      const minutos = parseInt(hora[1]) || 0;
+      const segundos = parseInt(hora[2]) || 0;
+
+      return new Date(anio, mes, dia, horas, minutos, segundos).getTime();
+    }
+
     // Cargar apuntes ordenados (compatibles con los antiguos sin timestamp)
     window.cargarApuntes = async function () {
       const contenedor = document.getElementById("listaApuntes");
@@ -55,7 +74,7 @@
 
         // Si no tiene timestamp (apuntes antiguos), lo calculamos desde fechaHora
         if (!apunte.timestamp && apunte.fechaHora) {
-          apunte.timestamp = Date.parse(apunte.fechaHora) || 0;
+          apunte.timestamp = convertirFecha(apunte.fechaHora);
         }
 
         apuntes.push(apunte);
